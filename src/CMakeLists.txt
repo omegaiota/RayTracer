@@ -32,6 +32,7 @@ set(APPLICATION_SOURCE
 
     # PathTracer
     bvh.cpp
+    kdtree.cpp
     bbox.cpp
     bsdf.cpp
     camera.cpp

@@ -9,6 +9,30 @@
 namespace PROJ6850 {
 namespace StaticScene {
 
+
+/**
+ * A node in the BVH accelerator aggregate.
+ * The accelerator uses a "flat tree" structure where all the primitives are
+ * stored in one vector. A node in the data structure stores only the starting
+ * index and the number of primitives in the node and uses this information to
+ * index into the primitive vector for actual data. In this implementation all
+ * primitives (index + range) are stored on leaf nodes. A leaf node has no child
+ * node and its range should be no greater than the maximum leaf size used when
+ * constructing the BVH.
+ */
+    struct AccelNode {
+        AccelNode(BBox bb, size_t start, size_t range)
+                : bb(bb), start(start), range(range), l(NULL), r(NULL) {}
+
+        inline bool isLeaf() const { return l == NULL && r == NULL; }
+
+        BBox bb;       ///< bounding box of the node
+        size_t start;  ///< start index into the primitive list
+        size_t range;  ///< range of index into the primitive list
+        AccelNode *l;    ///< left child node
+        AccelNode *r;    ///< right child node
+    };
+
 /**
  * Interface for objects in the scene.
  */

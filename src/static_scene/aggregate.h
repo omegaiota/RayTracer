@@ -19,6 +19,7 @@ class Aggregate : public Primitive {
  public:
   // Implements Primitive //
 
+
   // NOTE:
   // There is no restriction on how an Aggregate should be implemented but
   // normally an Aggregate should keep track of the primitives that it is

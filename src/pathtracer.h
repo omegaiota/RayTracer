@@ -10,6 +10,7 @@
 #include "PROJ6850/timer.h"
 
 #include "bvh.h"
+#include "kdtree.h"
 #include "camera.h"
 #include "sampler.h"
 #include "image.h"
@@ -21,8 +22,9 @@ using PROJ6850::StaticScene::Scene;
 #include "static_scene/environment_light.h"
 using PROJ6850::StaticScene::EnvironmentLight;
 
-using PROJ6850::StaticScene::BVHNode;
+using PROJ6850::StaticScene::AccelNode;
 using PROJ6850::StaticScene::BVHAccel;
+using PROJ6850::StaticScene::KDTREEAccel;
 
 namespace PROJ6850 {
 
@@ -225,6 +227,7 @@ namespace PROJ6850 {
         // Components //
 
         BVHAccel* bvh;                 ///< BVH accelerator aggregate
+        KDTREEAccel* kdtree;                 ///< KD-Tree accelerator aggregate
         EnvironmentLight* envLight;    ///< environment map
         Sampler2D* gridSampler;        ///< samples unit grid
         Sampler3D* hemisphereSampler;  ///< samples unit hemisphere
@@ -251,9 +254,11 @@ namespace PROJ6850 {
 
         // Visualizer Controls //
 
-        std::stack<BVHNode*> selectionHistory;  ///< node selection history
+        std::stack<AccelNode*> selectionHistory;  ///< node selection history
         std::vector<LoggedRay> rayLog;          ///< ray tracing log
         bool show_rays;                         ///< show rays from raylog
+
+        bool useKdtree; // if true use kdtree; else use bvh
     };
 
 }  // namespace PROJ6850

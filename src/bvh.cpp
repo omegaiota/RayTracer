@@ -29,10 +29,10 @@ namespace PROJ6850 {
 
         }
 
-        BVHNode *BVHAccel::recursiveBuild(size_t start, size_t end, size_t &totalNodesBuild,
-                                          std::vector<Primitive *> &orderedPrimitives,
-                                          const std::vector<Primitive *> &originalPrimitives,
-                                          size_t max_leaf_size) {
+        AccelNode *BVHAccel::recursiveBuild(size_t start, size_t end, size_t &totalNodesBuild,
+                                            std::vector<Primitive *> &orderedPrimitives,
+                                            const std::vector<Primitive *> &originalPrimitives,
+                                            size_t max_leaf_size) {
            totalNodesBuild++;
           size_t range = end - start;
 
@@ -40,7 +40,7 @@ namespace PROJ6850 {
           for (size_t i = start; i < end; i++) {
             boundBox.expand(originalPrimitives[i]->get_bbox());
           }
-          BVHNode *thisNode = new BVHNode(boundBox, orderedPrimitives.size(), range);
+          AccelNode *thisNode = new AccelNode(boundBox, orderedPrimitives.size(), range);
 
            if (range <= max_leaf_size) {
             // Leafnode
@@ -84,11 +84,8 @@ namespace PROJ6850 {
                     (int) (BUCKET_NUM * ((originalPrimitives[i]->get_bbox().centroid()[splitDimension] -
                                           boundCentroidAll.min[splitDimension])
                                          / maxDimensionRange));
-//                std::cout << "bucket:" << bucketIndex;
             if (bucketIndex >= BUCKET_NUM)
               bucketIndex = BUCKET_NUM - 1;
-//                std::cout << " -> bucket:" << bucketIndex << "\n";
-
             buckets[bucketIndex].bound.expand(originalPrimitives[i]->get_bbox());
             buckets[bucketIndex].count++;
             buckets[bucketIndex].prims.push_back(originalPrimitives[i]);
@@ -109,8 +106,7 @@ namespace PROJ6850 {
               rightBox.expand(buckets[j].bound);
               pRIGHT++;
             }
-            cost[i] = 0.125 +
-                      (pLEFT * leftBox.surface_area() + pRIGHT * rightBox.surface_area()) / boundBox.surface_area();
+            cost[i] = 0.125 + (pLEFT * leftBox.surface_area() + pRIGHT * rightBox.surface_area()) / boundBox.surface_area();
           }
 
           size_t minBucketSplit = 0;
@@ -121,7 +117,7 @@ namespace PROJ6850 {
           }
 
           // split primitives
-          BVHNode *leftNode, *rightNode;
+          AccelNode *leftNode, *rightNode;
           if (cost[minBucketSplit] < range) {
             std::vector<Primitive *> left, right;
             left.clear();
@@ -162,15 +158,9 @@ namespace PROJ6850 {
 
         }
 
-        BVHAccel::~BVHAccel() {
-          // Implement a proper destructor for your BVH accelerator aggregate
-
-        }
-
-        BBox BVHAccel::get_bbox() const { return root->bb; }
 
 
-        void BVHAccel::traverse(const Ray &ray, BVHNode *currentNode, Intersection *isect, bool &hits) const {
+        void BVHAccel::traverse(const Ray &ray, AccelNode *currentNode, Intersection *isect, bool &hits) const {
 
           double t0 = 0, t1 = 0;
           if (currentNode == nullptr || !currentNode->bb.intersect(ray, t0, t1)) {
@@ -200,25 +190,17 @@ namespace PROJ6850 {
             // first traverse the node that has closer hit
             if (leftIntersect && rightIntersect) { //traversal optimization
               if (tminLeft < tminRight) {
-//                printf("going left\n");
                 traverse(ray, currentNode->l, isect, hits);
-//                printf("going right\n");
-
                 traverse(ray, currentNode->r, isect, hits);
               } else {
-//                printf("traverse right first\n");
-//                printf("going right\n");
+
                 traverse(ray, currentNode->r, isect, hits);
-//                printf("going left\n");
                 traverse(ray, currentNode->l, isect, hits);
               }
             } else if (leftIntersect) {
-//              printf("going left\n");
               traverse(ray, currentNode->l, isect, hits);
             } else if (rightIntersect) {
-//              printf("going right\n");
               traverse(ray, currentNode->r, isect, hits);
-
             }
           }
         }
@@ -244,6 +226,21 @@ namespace PROJ6850 {
           bool hit = false;
           traverse(ray, root, nullptr, hit);
           return hit;
+        }
+
+
+        void recursiveDelete(AccelNode* node) {
+          if (node->isLeaf()) {
+            delete node;
+          } else {
+            recursiveDelete(node->l);
+            recursiveDelete(node->r);
+          }
+        }
+
+        BVHAccel::~BVHAccel() {
+          // Implement a proper destructor for your BVH accelerator aggregate
+          recursiveDelete(root);
         }
 
 

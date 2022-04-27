@@ -45,6 +45,8 @@ namespace PROJ6850 {
       }
 
       bvh = NULL;
+      kdtree = NULL;
+      useKdtree = false;
       scene = NULL;
       camera = NULL;
 
@@ -76,7 +78,11 @@ namespace PROJ6850 {
 
       if (this->scene != nullptr) {
         delete scene;
+
+        if (bvh != nullptr)
         delete bvh;
+        if (kdtree != nullptr)
+        delete kdtree;
         selectionHistory.pop();
       }
 
@@ -164,8 +170,13 @@ namespace PROJ6850 {
 
     void PathTracer::clear() {
       if (state != READY) return;
+      if (bvh != nullptr)
       delete bvh;
+
+      if (kdtree != nullptr)
+        delete kdtree;
       bvh = NULL;
+      kdtree = NULL;
       scene = NULL;
       camera = NULL;
       selectionHistory.pop();
@@ -235,8 +246,20 @@ namespace PROJ6850 {
       timer.stop();
       fprintf(stdout, "Done! (%.4f sec)\n", timer.duration());
 
+
+      fprintf(stdout, "[PathTracer] Building KD-Tree... ");
+      fflush(stdout);
+      timer.start();
+      kdtree = new KDTREEAccel(primitives);
+      timer.stop();
+      fprintf(stdout, "Done! (%.4f sec)\n", timer.duration());
+
+
       // initial visualization //
-      selectionHistory.push(bvh->get_root());
+      if (!useKdtree)
+        selectionHistory.push(bvh->get_root());
+      else
+        selectionHistory.push(kdtree->get_root());
     }
 
     void PathTracer::log_ray_miss(const Ray &r) {
@@ -263,7 +286,7 @@ namespace PROJ6850 {
       Color cprim_hl_right = Color(.8, .8, 1., 1);
       Color cprim_hl_edges = Color(0., 0., 0., 0.5);
 
-      BVHNode *selected = selectionHistory.top();
+      AccelNode *selected = selectionHistory.top();
 
       // render solid geometry (with depth offset)
       glPolygonOffset(1.0, 1.0);
@@ -271,19 +294,21 @@ namespace PROJ6850 {
 
       if (selected->isLeaf()) {
         for (size_t i = 0; i < selected->range; ++i) {
-          bvh->primitives[selected->start + i]->draw(cprim_hl_left);
+          if (useKdtree)
+
+          (useKdtree ? kdtree->primitives[selected->start + i] : bvh->primitives[selected->start + i])->draw(cprim_hl_left);
         }
       } else {
         if (selected->l) {
-          BVHNode *child = selected->l;
+          AccelNode *child = selected->l;
           for (size_t i = 0; i < child->range; ++i) {
-            bvh->primitives[child->start + i]->draw(cprim_hl_left);
+            (useKdtree ? kdtree->primitives[child->start + i] : bvh->primitives[child->start + i])->draw(cprim_hl_left);
           }
         }
         if (selected->r) {
-          BVHNode *child = selected->r;
+          AccelNode *child = selected->r;
           for (size_t i = 0; i < child->range; ++i) {
-            bvh->primitives[child->start + i]->draw(cprim_hl_right);
+            (useKdtree ? kdtree->primitives[child->start + i] : bvh->primitives[child->start + i])->draw(cprim_hl_right);
           }
         }
       }
@@ -292,7 +317,7 @@ namespace PROJ6850 {
 
       // draw geometry outline
       for (size_t i = 0; i < selected->range; ++i) {
-        bvh->primitives[selected->start + i]->drawOutline(cprim_hl_edges);
+        (useKdtree ? kdtree->primitives[selected->start + i] : bvh->primitives[selected->start + i])->drawOutline(cprim_hl_edges);
       }
 
       // keep depth buffer check enabled so that mesh occluded bboxes, but
@@ -300,14 +325,14 @@ namespace PROJ6850 {
       glDepthMask(GL_FALSE);
 
       // create traversal stack
-      stack<BVHNode *> tstack;
+      stack<AccelNode *> tstack;
 
       // push initial traversal data
-      tstack.push(bvh->get_root());
+      tstack.push((useKdtree ? kdtree->get_root() : bvh->get_root()));
 
       // draw all BVH bboxes with non-highlighted color
       while (!tstack.empty()) {
-        BVHNode *current = tstack.top();
+        AccelNode *current = tstack.top();
         tstack.pop();
 
         current->bb.draw(cnode);
@@ -353,8 +378,20 @@ namespace PROJ6850 {
     }
 
     void PathTracer::key_press(int key) {
-      BVHNode *current = selectionHistory.top();
+      AccelNode *current = selectionHistory.top();
       switch (key) {
+        case 'u': {
+          // switch acceleration structure
+          useKdtree = !useKdtree;
+          std::printf("switched acceleration structure to %s\n", useKdtree ? "kd-tree" : "bvh");
+          while (!selectionHistory.empty())
+            selectionHistory.pop();
+          if (!useKdtree)
+            selectionHistory.push(bvh->get_root());
+          else
+            selectionHistory.push(kdtree->get_root());
+          break;
+        }
         case ']':
           ns_aa *= 2;
           printf("Samples per pixel changed to %lu\n", ns_aa);
@@ -368,9 +405,10 @@ namespace PROJ6850 {
           break;
         case KEYBOARD_UP:
         case '?':
-          if (current != bvh->get_root()) {
+          if (current != (useKdtree ? kdtree->get_root() : bvh->get_root())) {
             selectionHistory.pop();
           }
+
           break;
         case KEYBOARD_LEFT:
         case '<':
@@ -396,7 +434,7 @@ namespace PROJ6850 {
     Spectrum PathTracer::trace_ray(const Ray &r) {
       Intersection isect, isect_shadow;
 
-      if (!bvh->intersect(r, &isect)) {
+      if (!(useKdtree ? kdtree->intersect(r, &isect) : bvh->intersect(r, &isect))) {
 // log ray miss
 #ifdef ENABLE_RAY_LOGGING
         log_ray_miss(r);
@@ -475,7 +513,7 @@ namespace PROJ6850 {
             Ray r_shadow = Ray(o_shadow, d_shadow);
 
             isect_shadow.t = dist_to_light;
-            if (bvh->intersect(r_shadow, &isect_shadow)) {
+            if ((useKdtree ? kdtree->intersect(r_shadow, &isect_shadow) : bvh->intersect(r_shadow, &isect_shadow))) {
               continue;
             }
             L_out += f * light_L * (cos_theta / (num_light_samples * pr));
