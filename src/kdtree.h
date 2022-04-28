@@ -98,10 +98,14 @@ namespace PROJ6850 {
 
         private:
             AccelNode *root;  ///< root node of the kd tree
-            AccelNode *recursiveBuild(size_t start, size_t end, size_t &totalNodesBuild,
-                                      std::vector<Primitive *> &orderedPrimitives,
-                                      const std::vector<Primitive *> &originalPrimitives,
-                                      size_t max_leaf_size); ///< helper function for recursively building kd tree
+            // AccelNode *recursiveBuild(size_t start, size_t end, size_t &totalNodesBuild,
+            //                           std::vector<Primitive *> &orderedPrimitives,
+            //                           const std::vector<Primitive *> &originalPrimitives,
+            //                           size_t max_leaf_size); ///< helper function for recursively building kd tree
+            AccelNode *KDTREEAccel::recursiveBuild(size_t start, size_t end, size_t &totalNodesBuild,
+                                               std::vector<std::vector<Primitive *>> &sortedPrimitives,
+                                               std::vector<Primitive *> &orderedPrimitives,
+                                               size_t max_leaf_size, size_t splitDimension);
             void traverse(const Ray &ray, AccelNode* currentNode, Intersection *isect, bool &hits) const;
 
         };  // namespace StaticScene
