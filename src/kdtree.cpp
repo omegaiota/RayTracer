@@ -108,6 +108,7 @@ namespace PROJ6850 {
               first_half.push_back(sortedPrimitives[splitDimension][i]);
             } else {
               second_half.push_back(sortedPrimitives[splitDimension][i]);
+            }
           }
 
           std::vector<std::vector<Primitive *>> new_sortedPrimitivesLeft;
