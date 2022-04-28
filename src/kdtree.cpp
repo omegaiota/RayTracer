@@ -12,7 +12,18 @@ using namespace std;
 namespace PROJ6850 {
     namespace StaticScene {
 
-
+        bool comparePrimitive(Primitive* prim1, Primitive* prim2, size_t dimension) {
+          return prim1->get_bbox().centroid()[dimension] <= prim2->get_bbox().centroid()[dimension];
+        }
+        bool compareX(Primitive* prim1, Primitive* prim2) {
+          return comparePrimitive(prim1, prim2, 0);
+        }
+        bool compareY(Primitive* prim1, Primitive* prim2) {
+          return comparePrimitive(prim1, prim2, 1);
+        }
+        bool compareZ(Primitive* prim1, Primitive* prim2) {
+          return comparePrimitive(prim1, prim2, 2);
+        }
         KDTREEAccel::KDTREEAccel(const std::vector<Primitive *> &_primitives, size_t max_leaf_size) {
 
 //           Construct a KD Tree from the given vector of primitives and maximum leaf
@@ -22,13 +33,19 @@ namespace PROJ6850 {
           size_t totalNodeBuilt = 0;
           std::vector<Primitive *> orderedPrimitives;
           orderedPrimitives.reserve(_primitives.size());
+          std::vector<std::vector<Primitive *>> sortedPrimitives;
+          for (size_t i = 0; i < 3; i++) {
+            sortedPrimitives[i].reserve(_primitives.size()); // Could add count to for loop above and only reserve necessary space; space blows up rn
+            sortedPrimitives[i] = _primitives; // According to GFG this copies the vector: https://www.geeksforgeeks.org/ways-copy-vector-c/
+          }
+          sort(sortedPrimitives[0].begin(), sortedPrimitives[0].end(), compareX);
+          sort(sortedPrimitives[1].begin(), sortedPrimitives[1].end(), compareY);
+          sort(sortedPrimitives[2].begin(), sortedPrimitives[2].end(), compareZ);
 
           root = recursiveBuild(0, _primitives.size(), totalNodeBuilt, sortedPrimitives, orderedPrimitives, max_leaf_size, 0);
           assert(root->range == _primitives.size());
           assert(orderedPrimitives.size() == root->range);
           primitives = orderedPrimitives;
-
-
         }
 
         KDTREEAccel::~KDTREEAccel() {
@@ -46,7 +63,7 @@ namespace PROJ6850 {
           for (size_t i = start; i < end; i++) {
             boundBox.expand(sortedPrimitives[0][i]->get_bbox());
           }
-          AccelNode *thisNode = new AccelNode(boundBox, orderedPrimitives.size(), range);
+          AccelNode *thisNode = new AccelNode(boundBox, orderedPrimitives.size(), range); // TODO: still confused why this isn't sortedPrimitives[0].size()
 
           if (range <= max_leaf_size) {
             // Leafnode
@@ -66,15 +83,16 @@ namespace PROJ6850 {
           std::vector<Primitive *> right_ordered1;
           std::vector<Primitive *> left_ordered2;
           std::vector<Primitive *> right_ordered2;
+          first_half.reserve(sortedPrimitives[0].size());
+          second_half.reserve(sortedPrimitives[0].size());
           left_ordered1.reserve(sortedPrimitives[0].size());
           right_ordered1.reserve(sortedPrimitives[0].size());
           left_ordered2.reserve(sortedPrimitives[0].size());
           right_ordered2.reserve(sortedPrimitives[0].size());
-          std::vector<Primitive *> ordered1; 
-          std::vector<Primitive *> ordered2; 
-          ordered2 = sortedPrimitives[(splitDimension + 2) % 3];
-          ordered1 = sortedPrimitives[(splitDimension + 1) % 3];
-
+          std::vector<Primitive *> ordered1 = sortedPrimitives[(splitDimension + 1) % 3];
+          std::vector<Primitive *> ordered2 = sortedPrimitives[(splitDimension + 2) % 3];
+          
+          // This isn't necessarily balanced because multiple coordinates could have same x, y, or z
           for (size_t i = 0; i < sortedPrimitives[0].size(); i++) {
             if (ordered1[i]->get_bbox().centroid()[splitDimension] <= split_coor[splitDimension]) {
               left_ordered1.push_back(ordered1[i]);
@@ -86,7 +104,7 @@ namespace PROJ6850 {
             } else {
               right_ordered2.push_back(ordered2[i]);
             }
-            if (sortedPrimitives[splitDimension][i]->get_bbox().centroid()[splitDimension] <= middle_index) {
+            if (sortedPrimitives[splitDimension][i]->get_bbox().centroid()[splitDimension] <= split_coor[splitDimension]) {
               first_half.push_back(sortedPrimitives[splitDimension][i]);
             } else {
               second_half.push_back(sortedPrimitives[splitDimension][i]);
@@ -98,14 +116,18 @@ namespace PROJ6850 {
             new_sortedPrimitivesLeft[i].reserve(first_half.size()); // Could add count to for loop above and only reserve necessary space; space blows up rn
             new_sortedPrimitivesRight[i].reserve(second_half.size());
           }
+          // These two for loops can be combined some way
           for (size_t i = 0; i < first_half.size(); i++) {
             new_sortedPrimitivesLeft[splitDimension][i] = first_half[i];
             new_sortedPrimitivesLeft[(splitDimension + 1) % 3][i] = left_ordered1[i];
             new_sortedPrimitivesLeft[(splitDimension + 2) % 3][i] = right_ordered1[i];
+          }
+          for (size_t i = 0; i < second_half.size(); i++) {
             new_sortedPrimitivesRight[splitDimension][i] = second_half[i];
             new_sortedPrimitivesRight[(splitDimension + 1) % 3][i] = left_ordered2[i];
             new_sortedPrimitivesRight[(splitDimension + 2) % 3][i] = right_ordered2[i];
           }
+          assert(start + first_half.size() + second_half.size() == end);
           thisNode->l = recursiveBuild(start, start + first_half.size(), totalNodesBuild, new_sortedPrimitivesLeft, orderedPrimitives, max_leaf_size, (splitDimension + 1) % 3);
           thisNode->r = recursiveBuild(start + first_half.size() + 1, end, totalNodesBuild, new_sortedPrimitivesRight, orderedPrimitives, max_leaf_size, (splitDimension + 1) % 3);
           return thisNode;
