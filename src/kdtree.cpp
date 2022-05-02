@@ -42,16 +42,11 @@ namespace PROJ6850 {
             }
             sortedPrimitives.push_back(temp);
           }
-          cout << sortedPrimitives[0].size() << endl;
-          cout << "Here" << endl;
           sort(sortedPrimitives[0].begin(), sortedPrimitives[0].end(), compareX);
-          cout << "Here" << endl;
           sort(sortedPrimitives[1].begin(), sortedPrimitives[1].end(), compareY);
-          cout << "Here" << endl;
           sort(sortedPrimitives[2].begin(), sortedPrimitives[2].end(), compareZ);
-          cout << "Here" << endl;
 
-          root = recursiveBuild(0, _primitives.size(), totalNodeBuilt, sortedPrimitives, orderedPrimitives, max_leaf_size, 0);
+          root = KDTREEAccel::recursiveBuild(0, _primitives.size(), totalNodeBuilt, sortedPrimitives, orderedPrimitives, max_leaf_size, 0);
           assert(root->range == _primitives.size());
           assert(orderedPrimitives.size() == root->range);
           primitives = orderedPrimitives;
@@ -65,36 +60,36 @@ namespace PROJ6850 {
                                                std::vector<std::vector<Primitive *>> &sortedPrimitives,
                                                std::vector<Primitive *> &orderedPrimitives,
                                                size_t max_leaf_size, size_t splitDimension) {
-          cout << "Here" << endl;
+          cout << 1 << endl;
           assert(splitDimension >= 0 && splitDimension <= 2);
           totalNodesBuild++;
-          size_t range = end - start;
-          BBox boundBox; // boundBox for all primitives in this range
-          for (size_t i = start; i < end; i++) {
-            cout << "Here" << endl;
-            cout << sortedPrimitives[0][i]->get_bbox().centroid()[0] << endl;
-            cout << sortedPrimitives[0][i]->get_bbox().centroid()[1] << endl;
-            cout << sortedPrimitives[0][i]->get_bbox().centroid()[2] << endl;
-            cout << "Here" << endl;
+          size_t rangeCount = end - start;
+          BBox boundBox; // boundBox for all primitives in this rangeCount
+          for (size_t i = 0; i < rangeCount; i++) {
+//            cout << "Here" << endl;
+//            cout << sortedPrimitives[0][i]->get_bbox().centroid()[0] << endl;
+//            cout << sortedPrimitives[0][i]->get_bbox().centroid()[1] << endl;
+//            cout << sortedPrimitives[0][i]->get_bbox().centroid()[2] << endl;
+//            cout << "Here" << endl;
             boundBox.expand(sortedPrimitives[0][i]->get_bbox());
           }
-          cout << "Here" << endl;
-          AccelNode *thisNode = new AccelNode(boundBox, orderedPrimitives.size(), range); // TODO: still confused why this isn't sortedPrimitives[0].size()
-          cout << "Here" << endl;
+          cout << 2 << endl;
+          AccelNode *thisNode = new AccelNode(boundBox, orderedPrimitives.size(), rangeCount); // TODO: still confused why this isn't sortedPrimitives[0].size()
+          cout << 3 << endl;
 
-          if (range <= max_leaf_size) {
+          if (rangeCount <= max_leaf_size) {
             // Leafnode
-            for (size_t i = start; i < end; i++) {
-              orderedPrimitives.push_back(sortedPrimitives[0][i]);
+            for (size_t i = 0; i < rangeCount; i++) {
+              orderedPrimitives.push_back(sortedPrimitives[splitDimension][i]);
             }
             return thisNode;
           }
-          cout << "Here" << endl;
+          cout << 4 << endl;
 
           // Recursive Case
           size_t middle_index = (end + start) / 2; // TODO: this is int division?
           Vector3D split_coor = sortedPrimitives[splitDimension][middle_index]->get_bbox().centroid();
-          cout << "Here" << endl;
+          cout << 5 << endl;
 
           std::vector<Primitive *> first_half;
           std::vector<Primitive *> second_half;
@@ -110,10 +105,10 @@ namespace PROJ6850 {
           right_ordered2.reserve(sortedPrimitives[0].size());
           std::vector<Primitive *> ordered1 = sortedPrimitives[(splitDimension + 1) % 3];
           std::vector<Primitive *> ordered2 = sortedPrimitives[(splitDimension + 2) % 3];
-          cout << "Here" << endl;
+          cout << 6 << endl;
           
           // This isn't necessarily balanced because multiple coordinates could have same x, y, or z
-          for (size_t i = 0; i < sortedPrimitives[0].size(); i++) {
+          for (int i = 0; i < sortedPrimitives[0].size(); i++) {
             if (ordered1[i]->get_bbox().centroid()[splitDimension] <= split_coor[splitDimension]) {
               left_ordered1.push_back(ordered1[i]);
             } else {
@@ -130,31 +125,33 @@ namespace PROJ6850 {
               second_half.push_back(sortedPrimitives[splitDimension][i]);
             }
           }
-          cout << "Here" << endl;
+          cout << 7 << endl;
 
           std::vector<std::vector<Primitive *>> new_sortedPrimitivesLeft;
           std::vector<std::vector<Primitive *>> new_sortedPrimitivesRight;
           for (size_t i = 0; i < 3; i++) {
-            new_sortedPrimitivesLeft[i].reserve(first_half.size()); // Could add count to for loop above and only reserve necessary space; space blows up rn
-            new_sortedPrimitivesRight[i].reserve(second_half.size());
+              new_sortedPrimitivesLeft.push_back({});
+              new_sortedPrimitivesRight.push_back({});
+              new_sortedPrimitivesLeft[i].reserve(first_half.size()); // Could add count to for loop above and only reserve necessary space; space blows up rn
+              new_sortedPrimitivesRight[i].reserve(second_half.size());
           }
-          cout << "Here" << endl;
+          cout << 8 << endl;
           // These two for loops can be combined some way
           for (size_t i = 0; i < first_half.size(); i++) {
-            new_sortedPrimitivesLeft[splitDimension][i] = first_half[i];
-            new_sortedPrimitivesLeft[(splitDimension + 1) % 3][i] = left_ordered1[i];
-            new_sortedPrimitivesLeft[(splitDimension + 2) % 3][i] = right_ordered1[i];
+            new_sortedPrimitivesLeft[splitDimension].push_back(first_half[i]);
+            new_sortedPrimitivesLeft[(splitDimension + 1) % 3].push_back(left_ordered1[i]);
+            new_sortedPrimitivesLeft[(splitDimension + 2) % 3].push_back(right_ordered1[i]);
           }
-          cout << "Here" << endl;
+          cout << 9 << endl;
           for (size_t i = 0; i < second_half.size(); i++) {
-            new_sortedPrimitivesRight[splitDimension][i] = second_half[i];
-            new_sortedPrimitivesRight[(splitDimension + 1) % 3][i] = left_ordered2[i];
-            new_sortedPrimitivesRight[(splitDimension + 2) % 3][i] = right_ordered2[i];
+            new_sortedPrimitivesRight[splitDimension].push_back(second_half[i]);
+            new_sortedPrimitivesRight[(splitDimension + 1) % 3].push_back(left_ordered2[i]);
+            new_sortedPrimitivesRight[(splitDimension + 2) % 3].push_back(right_ordered2[i]);
           }
-          cout << "Here" << endl;
-          assert(start + first_half.size() + second_half.size() == end);
-          thisNode->l = recursiveBuild(start, start + first_half.size(), totalNodesBuild, new_sortedPrimitivesLeft, orderedPrimitives, max_leaf_size, (splitDimension + 1) % 3);
-          thisNode->r = recursiveBuild(start + first_half.size() + 1, end, totalNodesBuild, new_sortedPrimitivesRight, orderedPrimitives, max_leaf_size, (splitDimension + 1) % 3);
+          cout << 10 << endl;
+          assert(start + new_sortedPrimitivesLeft[0].size() + new_sortedPrimitivesRight[0].size() == end);
+          thisNode->l = recursiveBuild(start, start + new_sortedPrimitivesLeft[0].size(), totalNodesBuild, new_sortedPrimitivesLeft, orderedPrimitives, max_leaf_size, (splitDimension + 1) % 3);
+          thisNode->r = recursiveBuild(start + new_sortedPrimitivesLeft[0].size(), end, totalNodesBuild, new_sortedPrimitivesRight, orderedPrimitives, max_leaf_size, (splitDimension + 1) % 3);
           cout << "Finished" << endl;
           return thisNode;
         }
