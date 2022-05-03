@@ -102,7 +102,7 @@ namespace PROJ6850 {
             AccelNode *recursiveBuild(  size_t &totalNodesBuild,
                                       std::set<int>& indices,
                                       const std::vector<Primitive *> &originalPrimitives,
-                                      size_t max_leaf_size, int level,  BBox& box); ///< helper function for recursively building kd tree
+                                      size_t max_leaf_size, int level,  BBox& bbox); ///< helper function for recursively building kd tree
             void traverse(const Ray &ray, AccelNode* currentNode, Intersection *isect, bool &hits) const;
 
         };  // namespace StaticScene

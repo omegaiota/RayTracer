@@ -59,18 +59,10 @@ namespace PROJ6850 {
 
         AccelNode *KDTREEAccel::recursiveBuild( size_t &totalNodesBuild, std::set<int>& indices,
                                                const std::vector<Primitive *> &originalPrimitives,
-                                               size_t max_leaf_size, int level, BBox& box) {
+                                               size_t max_leaf_size, int level, BBox& bbox) {
           totalNodesBuild++;
-          BBox boundBox; // boundBox for all primitives in this range
-//          for (int idx : indices) {
-//            BBox elemBBox = originalPrimitives[idx]->get_bbox();
-//            boundBox.expand(elemBBox);
-//          }
-
-          boundBox = box;
-
           int N = indices.size();
-          AccelNode *thisNode = new AccelNode(boundBox, indices);
+          AccelNode *thisNode = new AccelNode(bbox, indices);
 
           if ((N <= max_leaf_size) || (level >  8 + 1.3 * std::log(originalPrimitives.size())) ) {
             // build leaf node
@@ -90,12 +82,12 @@ namespace PROJ6850 {
             AccelNode *leftNode, *rightNode;
             std::set<int> left, right;
             BBox leftBBox, rightBBox;
-            leftBBox = rightBBox = boundBox;
+            leftBBox = rightBBox = bbox;
             leftBBox.max[splitAxis] = rightBBox.min[splitAxis] = medianOnAxis;
 
             for (int idx : indices) {
               BBox elemBBox = originalPrimitives[idx]->get_bbox();
-              if (elemBBox.max[splitAxis] <= medianOnAxis) { // triangle should be put in the left box
+              if (elemBBox.max[splitAxis] <= medianOnAxis) { // triangle should be put in the left bbox
                 // add to left
                 left.insert(idx);
               } else if (elemBBox.min[splitAxis] >= medianOnAxis)
@@ -188,8 +180,6 @@ namespace PROJ6850 {
 
           bool hit = false;
           traverse(ray, root, isect, hit);
-
-
           return hit;
         }
 
