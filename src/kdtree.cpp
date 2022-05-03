@@ -37,22 +37,9 @@ namespace PROJ6850 {
           // free any memories allocated as needed
         }
 
-        double  findMedian(const std::vector<Primitive *> & originalPrimitives, std::set<int>& indices, int  splitAxis) {
-          // First use naive sort algorithm for median finding
-            std::vector<double> vals;
-//          {
-//            // spatial median
-//            double min = originalPrimitives[0]->get_bbox().min[splitAxis];
-//            double max = originalPrimitives[0]->get_bbox().max[splitAxis];
-//            for (int idx : indices) {
-//              BBox elemBBox = originalPrimitives[idx]->get_bbox();
-//              min = std::min(min, elemBBox.min[splitAxis]);
-//              max = std::max(max, elemBBox.max[splitAxis]);
-//            }
-//            return (min + max) / 2;
-//          }
-
-
+        double  findSplitPlane(const std::vector<Primitive *> & originalPrimitives, std::set<int>& indices, int  splitAxis) {
+          // Use naive sorting for split plane
+          std::vector<double> vals;
           for (int idx : indices) {
             BBox elemBBox = originalPrimitives[idx]->get_bbox();
             vals.emplace_back(elemBBox.centroid()[splitAxis]);
@@ -98,15 +85,13 @@ namespace PROJ6850 {
 
             splitAxis = boundCentroidAll.longestDimension();
 
-            double medianOnAxis = findMedian(originalPrimitives, indices, splitAxis);
+            double medianOnAxis = findSplitPlane(originalPrimitives, indices, splitAxis);
             // split primitives on the splitaxis according to median, build left and right tree node
             AccelNode *leftNode, *rightNode;
             std::set<int> left, right;
             BBox leftBBox, rightBBox;
-            leftBBox = boundBox;
-            rightBBox = boundBox;
-            leftBBox.max[splitAxis] = medianOnAxis;
-            rightBBox.min[splitAxis] = medianOnAxis;
+            leftBBox = rightBBox = boundBox;
+            leftBBox.max[splitAxis] = rightBBox.min[splitAxis] = medianOnAxis;
 
             for (int idx : indices) {
               BBox elemBBox = originalPrimitives[idx]->get_bbox();
@@ -130,7 +115,6 @@ namespace PROJ6850 {
                                       max_leaf_size, level + 1, leftBBox);
             rightNode = recursiveBuild(  totalNodesBuild, right, originalPrimitives,
                                        max_leaf_size, level + 1, rightBBox);
-
             thisNode->l = leftNode;
             thisNode->r = rightNode;
             return thisNode;
