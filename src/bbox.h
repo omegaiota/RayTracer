@@ -77,6 +77,15 @@ struct BBox {
     extent = max - min;
   }
 
+  void intersect(const BBox& bbox) {
+    for (int i = 0; i < 2; i++)  {
+      min[i] = std::max(min[i], bbox.min[i]);
+      max[i] = std::min(max[i], bbox.max[i]);
+    }
+
+
+  }
+
   /**
     * Expand the bounding box to include a new point in space.
     * If the given point is already inside *this*, nothing happens.

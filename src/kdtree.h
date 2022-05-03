@@ -55,6 +55,7 @@ namespace PROJ6850 {
              * \return true if the given ray intersects with the aggregate,
                        false otherwise
              */
+            bool intersect(const Ray &r, int& totalNodesVisited) const;
             bool intersect(const Ray &r) const;
 
             /**
@@ -70,6 +71,7 @@ namespace PROJ6850 {
              * \return true if the given ray intersects with the aggregate,
                        false otherwise
              */
+            bool intersect(const Ray &r, Intersection *i, int& totalNodesVisited) const;
             bool intersect(const Ray &r, Intersection *i) const;
 
 
@@ -102,8 +104,9 @@ namespace PROJ6850 {
             AccelNode *recursiveBuild(  size_t &totalNodesBuild,
                                       std::set<int>& indices,
                                       const std::vector<Primitive *> &originalPrimitives,
-                                      size_t max_leaf_size, int level,  BBox& bbox); ///< helper function for recursively building kd tree
-            void traverse(const Ray &ray, AccelNode* currentNode, Intersection *isect, bool &hits) const;
+                                      size_t max_leaf_size, int level,  BBox& bbox, int& maxLevel); ///< helper function for recursively building kd tree
+            void traverse(const Ray &ray, AccelNode* currentNode, Intersection *isect, bool &hits, int level, int& maxLevel, int& totalNodesVisited) const;
+            void  recursiveDelete(AccelNode* node);
 
         };  // namespace StaticScene
     };

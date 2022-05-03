@@ -167,18 +167,18 @@ namespace PROJ6850 {
         /**
          * Trace an ray in the scene.
          */
-        Spectrum trace_ray(const Ray& ray);
+        Spectrum trace_ray(const Ray& ray, int& totalNodesVisited);
 
         /**
          * Trace a camera ray given by the pixel coordinate.
          */
-        Spectrum raytrace_pixel(size_t x, size_t y);
+        Spectrum raytrace_pixel(size_t x, size_t y, int& totalNodesVisited);
 
         /**
          * Raytrace a tile of the scene and update the frame buffer. Is run
          * in a worker thread.
          */
-        void raytrace_tile(int tile_x, int tile_y, int tile_w, int tile_h);
+        void raytrace_tile(int tile_x, int tile_y, int tile_w, int tile_h, int& totalNodesVisited);
 
         /**
          * Implementation of a ray tracer worker thread

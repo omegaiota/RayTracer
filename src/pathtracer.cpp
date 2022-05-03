@@ -453,10 +453,10 @@ namespace PROJ6850 {
     }
 
 
-    Spectrum PathTracer::trace_ray(const Ray &r) {
+    Spectrum PathTracer::trace_ray(const Ray &r, int& totalNodesVisited) {
       Intersection isect, isect_shadow;
 
-      if (!(useKdtree ? kdtree->intersect(r, &isect) : bvh->intersect(r, &isect))) {
+      if (!(useKdtree ? kdtree->intersect(r, &isect, totalNodesVisited) : bvh->intersect(r, &isect, totalNodesVisited))) {
 // log ray miss
 #ifdef ENABLE_RAY_LOGGING
         log_ray_miss(r);
@@ -535,7 +535,7 @@ namespace PROJ6850 {
             Ray r_shadow = Ray(o_shadow, d_shadow);
 
             isect_shadow.t = dist_to_light;
-            if ((useKdtree ? kdtree->intersect(r_shadow, &isect_shadow) : bvh->intersect(r_shadow, &isect_shadow))) {
+            if ((useKdtree ? kdtree->intersect(r_shadow, &isect_shadow, totalNodesVisited) : bvh->intersect(r_shadow, &isect_shadow, totalNodesVisited))) {
               continue;
             }
             L_out += f * light_L * (cos_theta / (num_light_samples * pr));
@@ -567,7 +567,7 @@ namespace PROJ6850 {
           // to light from this direction
           Ray newRay = Ray(hit_p +  w_in * EPS_D, w_in);
           newRay.depth = r.depth + 1;
-          Spectrum L_in = f * trace_ray(newRay);
+          Spectrum L_in = f * trace_ray(newRay, totalNodesVisited);
           double weight = fabs(dot(w_in,hit_n)) * (1.f / (pdf * (1.f - terminatingProb)));
       return  L_out + L_in * weight;
 
@@ -575,7 +575,7 @@ namespace PROJ6850 {
 
     }
 
-    Spectrum PathTracer::raytrace_pixel(size_t x, size_t y) {
+    Spectrum PathTracer::raytrace_pixel(size_t x, size_t y, int& totalNodesVisited) {
       // Sample the pixel with coordinate (x,y) and return the result spectrum.
       // The sample rate is given by the number of camera rays per pixel.
       Spectrum avg_radiance;
@@ -583,7 +583,7 @@ namespace PROJ6850 {
       double_t weight = 1.0f / (float) num_samples;
       double_t pixel_center_x = (double_t)x + 0.5 , pixel_center_y = (double_t)y + 0.5,
                ndc_x = pixel_center_x / frameBuffer.w, ndc_y = pixel_center_y / frameBuffer.h;
-      avg_radiance = trace_ray(camera->generate_ray(ndc_x, ndc_y)) * weight ;
+      avg_radiance = trace_ray(camera->generate_ray(ndc_x, ndc_y), totalNodesVisited) * weight ;
       if (num_samples > 1) {
         for (int i = 0; i < num_samples - 1; i++) {
           Vector2D randomSample = gridSampler->get_sample();
@@ -591,16 +591,17 @@ namespace PROJ6850 {
                   sample_y = y + randomSample.y;
           double sample_ndc_x = sample_x / frameBuffer.w,
                   sample_ndc_y = sample_y / frameBuffer.h;
-          avg_radiance += trace_ray(camera->generate_ray(sample_ndc_x, sample_ndc_y)) * weight;
+          avg_radiance += trace_ray(camera->generate_ray(sample_ndc_x, sample_ndc_y), totalNodesVisited) * weight;
         }
       }
+
 
       return avg_radiance;
 
 
     }
 
-    void PathTracer::raytrace_tile(int tile_x, int tile_y, int tile_w, int tile_h) {
+    void PathTracer::raytrace_tile(int tile_x, int tile_y, int tile_w, int tile_h, int& totalNodesVisited) {
       size_t w = sampleBuffer.w;
       size_t h = sampleBuffer.h;
 
@@ -617,7 +618,7 @@ namespace PROJ6850 {
       for (size_t y = tile_start_y; y < tile_end_y; y++) {
         if (!continueRaytracing) return;
         for (size_t x = tile_start_x; x < tile_end_x; x++) {
-          Spectrum s = raytrace_pixel(x, y);
+          Spectrum s = raytrace_pixel(x, y, totalNodesVisited);
           sampleBuffer.update_pixel(s, x, y);
         }
       }
@@ -625,16 +626,19 @@ namespace PROJ6850 {
       tile_samples[tile_idx_x + tile_idx_y * num_tiles_w] += 1;
       sampleBuffer.toColor(frameBuffer, tile_start_x, tile_start_y, tile_end_x,
                            tile_end_y);
+
     }
 
     void PathTracer::worker_thread() {
       Timer timer;
       timer.start();
+      int totalNodesVisited = 0;
 
       WorkItem work;
       while (continueRaytracing && workQueue.try_get_work(&work)) {
-        raytrace_tile(work.tile_x, work.tile_y, work.tile_w, work.tile_h);
+        raytrace_tile(work.tile_x, work.tile_y, work.tile_w, work.tile_h, totalNodesVisited);
       }
+      std::printf("totalNodes by thread: %d\n", totalNodesVisited);
 
       workerDoneCount++;
       if (!continueRaytracing && workerDoneCount == numWorkerThreads) {

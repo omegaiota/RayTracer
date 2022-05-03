@@ -54,8 +54,8 @@ namespace PROJ6850 {
              * \return true if the given ray intersects with the aggregate,
                        false otherwise
              */
+            bool intersect(const Ray &r, int& totalNodesVisited) const;
             bool intersect(const Ray &r) const;
-
             /**
              * Ray - Aggregate intersection 2.
              * Check if the given ray intersects with the aggregate (any primitive in
@@ -69,7 +69,8 @@ namespace PROJ6850 {
              * \return true if the given ray intersects with the aggregate,
                        false otherwise
              */
-            bool intersect(const Ray &r, Intersection *i) const;
+            bool intersect(const Ray &r, Intersection *i, int& totalNodesVisited) const;
+            bool intersect(const Ray &r, Intersection *i ) const;
 
             /**
              * Get BSDF of the surface material
@@ -99,8 +100,9 @@ namespace PROJ6850 {
             AccelNode *recursiveBuild(size_t start, size_t end, size_t &totalNodesBuild,
                                       std::vector<Primitive *> &orderedPrimitives,
                                       const std::vector<Primitive *> &originalPrimitives,
-                                      size_t max_leaf_size); ///< helper function for recursively building BVH
-            void traverse(const Ray &ray, AccelNode* currentNode, Intersection *isect, bool &hits) const;
+                                      size_t max_leaf_size, int level, int& maxLevel); ///< helper function for recursively building BVH
+            void traverse(const Ray &ray, AccelNode* currentNode, Intersection *isect, bool &hits, int& totalNodesVisited) const;
+            void  recursiveDelete(AccelNode* node);
 
         };  // namespace StaticScene
     };
