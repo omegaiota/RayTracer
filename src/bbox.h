@@ -124,6 +124,16 @@ struct BBox {
     */
   bool intersect(const Ray &r, double &t0, double &t1) const;
 
+  bool isInside(Vector3D& p) {
+    for (int i = 0; i < 3; i++){
+      if (p[i] < min[i])
+        return false;
+      if (p[i] > max[i])
+        return false;
+    }
+    return true;
+  }
+
   /**
     * Draw box wireframe with OpenGL.
     * \param c color of the wireframe

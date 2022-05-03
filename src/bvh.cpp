@@ -41,7 +41,6 @@ namespace PROJ6850 {
             boundBox.expand(originalPrimitives[i]->get_bbox());
           }
           AccelNode *thisNode = new AccelNode(boundBox, orderedPrimitives.size(), range);
-
            if (range <= max_leaf_size) {
             // Leafnode
             for (size_t i = start; i < end; i++) {

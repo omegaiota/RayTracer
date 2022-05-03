@@ -20,14 +20,12 @@ namespace PROJ6850 {
 //           single leaf node (which is also the root) that encloses all the
 //           primitives.
           size_t totalNodeBuilt = 0;
-          std::vector<Primitive *> orderedPrimitives;
-          orderedPrimitives.reserve(_primitives.size());
+          std::set<int> indices;
+          for (int i = 0; i < _primitives.size(); i++)
+            indices.insert(i);
 
-          root = recursiveBuild(0, _primitives.size(), totalNodeBuilt, orderedPrimitives, _primitives, max_leaf_size);
-          assert(root->range == _primitives.size());
-          assert(orderedPrimitives.size() == root->range);
-          primitives = orderedPrimitives;
-
+          root = recursiveBuild( totalNodeBuilt, indices , _primitives, max_leaf_size, 0);
+          primitives = _primitives;
 
         }
 
@@ -35,25 +33,87 @@ namespace PROJ6850 {
           // free any memories allocated as needed
         }
 
-        AccelNode *KDTREEAccel::recursiveBuild(size_t start, size_t end, size_t &totalNodesBuild,
-                                               std::vector<Primitive *> &orderedPrimitives,
+        double  findMedian(const std::vector<Primitive *> & originalPrimitives, std::set<int>& indices, int  splitAxis) {
+          // First use naive sort algorithm for median finding
+            std::vector<double> vals;
+            double min = originalPrimitives[0]->get_bbox().min[splitAxis];
+            double max = originalPrimitives[0]->get_bbox().max[splitAxis];
+          for (int idx : indices) {
+            BBox elemBBox = originalPrimitives[idx]->get_bbox();
+            min = std::min(min, elemBBox.min[splitAxis]);
+            max = std::max(max, elemBBox.max[splitAxis]);
+          }
+
+
+
+//          std::sort(vals.begin(), vals.end());
+//
+//          std::printf("Median is %.3f:",  vals[vals.size() / 2]);
+//          for (double v : vals)
+//            std::printf("%.3f ", v);
+//          std::printf("\n");
+
+          return (min + max) / 2;
+        }
+
+
+        AccelNode *KDTREEAccel::recursiveBuild( size_t &totalNodesBuild, std::set<int>& indices,
                                                const std::vector<Primitive *> &originalPrimitives,
-                                               size_t max_leaf_size) {
+                                               size_t max_leaf_size, int level) {
           totalNodesBuild++;
-          size_t range = end - start;
-
           BBox boundBox; // boundBox for all primitives in this range
-          for (size_t i = start; i < end; i++) {
-            boundBox.expand(originalPrimitives[i]->get_bbox());
+          for (int idx : indices) {
+            BBox elemBBox = originalPrimitives[idx]->get_bbox();
+            boundBox.expand(elemBBox);
           }
-          AccelNode *thisNode = new AccelNode(boundBox, 0,
-                                              range); // this starter code makes one single node. Therefore the primitives contained in the node includes all the primitives starting at index 0
 
-          // just make one single leaf node
-          for (size_t i = start; i < end; i++) {
-            orderedPrimitives.push_back(originalPrimitives[i]);
+          int N = indices.size();
+          AccelNode *thisNode = new AccelNode(boundBox, indices);
+
+          if ((N <= max_leaf_size) || (level > 100) ) {
+            // build leaf node
+            return thisNode;
+          } else {
+            BBox boundCentroidAll;
+            int splitAxis;
+            for (int idx : indices) {
+              boundCentroidAll.expand(originalPrimitives[idx]->get_bbox().centroid());
+            }
+
+            splitAxis = boundCentroidAll.longestDimension();
+
+            double medianOnAxis = findMedian(originalPrimitives, indices, splitAxis);
+            // split primitives on the splitaxis according to median, build left and right tree node
+            AccelNode *leftNode, *rightNode;
+            std::set<int> left, right;
+
+            for (int idx : indices) {
+              BBox elemBBox = originalPrimitives[idx]->get_bbox();
+              if (elemBBox.min[splitAxis] < medianOnAxis) { // triangle should be put in the left box
+                // add to left
+                left.insert(idx);
+              }
+              if (elemBBox.max[splitAxis] > medianOnAxis)
+              { // triangle intersects with right node
+                // add to left
+                right.insert(idx);
+
+              }
+            }
+
+//            std::printf("orignal: %d left: %d right: %d\n", indices.size(), left.size(), right.size());
+
+
+            leftNode = recursiveBuild( totalNodesBuild, left, originalPrimitives,
+                                      max_leaf_size, level + 1);
+            rightNode = recursiveBuild(  totalNodesBuild, right, originalPrimitives,
+                                       max_leaf_size, level + 1);
+
+            thisNode->l = leftNode;
+            thisNode->r = rightNode;
+            return thisNode;
           }
-          return thisNode;
+
 
         }
 
@@ -72,9 +132,9 @@ namespace PROJ6850 {
           }
 
           if (currentNode->isLeaf()) {
-            for (size_t i = currentNode->start; i < currentNode->start + currentNode->range; i++) {
-              if (((isect != nullptr) && primitives[i]->intersect(ray, isect)) ||
-                  ((isect == nullptr) && primitives[i]->intersect(ray))) {
+            for (int idx : currentNode->indices) {
+              if (((isect != nullptr) && primitives[idx]->intersect(ray, isect)) ||
+                  ((isect == nullptr) && primitives[idx]->intersect(ray))) {
                 hits = true;
               }
             }
@@ -88,10 +148,27 @@ namespace PROJ6850 {
             if (leftIntersect && rightIntersect) { //traversal optimization
               if (tminLeft < tminRight) {
                 traverse(ray, currentNode->l, isect, hits);
+                // If there is intersection with first node, and intersection point is within node, terminate search process
+                bool skipSecondNode = false;
+                if (hits) {
+                  Vector3D p = ray.o + ray.d * isect->t;
+                  if (currentNode->l->bb.isInside(p))
+                    skipSecondNode = true;
+                }
+
+                if (!skipSecondNode)
                 traverse(ray, currentNode->r, isect, hits);
               } else {
-
                 traverse(ray, currentNode->r, isect, hits);
+
+                bool skipSecondNode = false;
+                if (hits) {
+                  Vector3D p = ray.o + ray.d * isect->t;
+                  if (currentNode->r->bb.isInside(p))
+                    skipSecondNode = true;
+                }
+
+                if (!skipSecondNode)
                 traverse(ray, currentNode->l, isect, hits);
               }
             } else if (leftIntersect) {

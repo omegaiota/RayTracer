@@ -293,32 +293,54 @@ namespace PROJ6850 {
       glEnable(GL_POLYGON_OFFSET_FILL);
 
       if (selected->isLeaf()) {
-        for (size_t i = 0; i < selected->range; ++i) {
-          if (useKdtree)
-
-          (useKdtree ? kdtree->primitives[selected->start + i] : bvh->primitives[selected->start + i])->draw(cprim_hl_left);
+        if (useKdtree) {
+            for (int idx : selected->indices)
+              kdtree->primitives[idx]->draw(cprim_hl_left);
+        } else {
+          for (size_t i = 0; i < selected->range; ++i)
+            bvh->primitives[selected->start + i]->draw(cprim_hl_left);
         }
+
       } else {
         if (selected->l) {
           AccelNode *child = selected->l;
-          for (size_t i = 0; i < child->range; ++i) {
-            (useKdtree ? kdtree->primitives[child->start + i] : bvh->primitives[child->start + i])->draw(cprim_hl_left);
-          }
+            if (useKdtree) {
+              for (int idx : child->indices)
+                kdtree->primitives[idx]->draw(cprim_hl_left);
+            } else {
+              for (size_t i = 0; i < child->range; ++i)
+                bvh->primitives[child->start + i]->draw(cprim_hl_left);
+            }
+
         }
         if (selected->r) {
           AccelNode *child = selected->r;
-          for (size_t i = 0; i < child->range; ++i) {
-            (useKdtree ? kdtree->primitives[child->start + i] : bvh->primitives[child->start + i])->draw(cprim_hl_right);
+          if (useKdtree) {
+            for (int idx : child->indices)
+              kdtree->primitives[idx]->draw(cprim_hl_right);
+          } else {
+            for (size_t i = 0; i < child->range; ++i)
+              bvh->primitives[child->start + i]->draw(cprim_hl_right);
           }
+
+
+
         }
       }
 
       glDisable(GL_POLYGON_OFFSET_FILL);
 
       // draw geometry outline
-      for (size_t i = 0; i < selected->range; ++i) {
-        (useKdtree ? kdtree->primitives[selected->start + i] : bvh->primitives[selected->start + i])->drawOutline(cprim_hl_edges);
+      if (useKdtree) {
+        for (int idx : selected->indices) {
+          kdtree->primitives[idx]->drawOutline(cprim_hl_edges);
+        }
+      } else {
+        for (size_t i = 0; i < selected->range; ++i) {
+          bvh->primitives[selected->start + i]->drawOutline(cprim_hl_edges);
+        }
       }
+
 
       // keep depth buffer check enabled so that mesh occluded bboxes, but
       // disable depth write so that bboxes don't occlude each other.

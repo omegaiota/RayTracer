@@ -5,6 +5,7 @@
 #include "primitive.h"
 
 #include <vector>
+#include <set>
 
 namespace PROJ6850 {
 namespace StaticScene {
@@ -21,16 +22,22 @@ namespace StaticScene {
  * constructing the BVH.
  */
     struct AccelNode {
-        AccelNode(BBox bb, size_t start, size_t range)
-                : bb(bb), start(start), range(range), l(NULL), r(NULL) {}
+        AccelNode(BBox bb, size_t start, size_t range) // flat tree representaation for BVH
+                : bb(bb), start(start), range(range), l(NULL), r(NULL) {} // set representation for kd-tree
+
+        AccelNode(BBox bb, std::set<int>& indices)
+                : bb(bb), start(0), range(0), indices(indices), l(NULL), r(NULL) {}
 
         inline bool isLeaf() const { return l == NULL && r == NULL; }
 
         BBox bb;       ///< bounding box of the node
         size_t start;  ///< start index into the primitive list
         size_t range;  ///< range of index into the primitive list
+
+        std::set<int> indices; // index into the primitive list
         AccelNode *l;    ///< left child node
         AccelNode *r;    ///< right child node
+
     };
 
 /**

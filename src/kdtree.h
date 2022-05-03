@@ -5,6 +5,7 @@
 #include "static_scene/aggregate.h"
 
 #include <vector>
+#include <set>
 
 namespace PROJ6850 {
     namespace StaticScene {
@@ -98,10 +99,10 @@ namespace PROJ6850 {
 
         private:
             AccelNode *root;  ///< root node of the kd tree
-            AccelNode *recursiveBuild(size_t start, size_t end, size_t &totalNodesBuild,
-                                      std::vector<Primitive *> &orderedPrimitives,
+            AccelNode *recursiveBuild(  size_t &totalNodesBuild,
+                                      std::set<int>& indices,
                                       const std::vector<Primitive *> &originalPrimitives,
-                                      size_t max_leaf_size); ///< helper function for recursively building kd tree
+                                      size_t max_leaf_size, int level); ///< helper function for recursively building kd tree
             void traverse(const Ray &ray, AccelNode* currentNode, Intersection *isect, bool &hits) const;
 
         };  // namespace StaticScene
