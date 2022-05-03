@@ -121,7 +121,7 @@ namespace PROJ6850 {
               }
             }
 
-            if ((left.size() > 0.7 * indices.size()) || (right.size() > 0.7 * indices.size())) // bad split, return tree node
+            if ((left.size() > 0.9 * indices.size()) || (right.size() > 0.9 * indices.size())) // bad split, return tree node
               return thisNode;
 
             leftNode = recursiveBuild( totalNodesBuild, left, originalPrimitives,
@@ -138,7 +138,6 @@ namespace PROJ6850 {
 
 
         void KDTREEAccel::traverse(const Ray &ray, AccelNode *currentNode, Intersection *isect, bool &hits, int level, int& maxLevel, int& totalNodesVisited) const {
-          totalNodesVisited++;
           maxLevel = std::max(level, maxLevel);
           double t0 = 0, t1 = 0;
           if (currentNode == nullptr ||
@@ -153,6 +152,7 @@ namespace PROJ6850 {
 
           if (currentNode->isLeaf()) {
             for (int idx : currentNode->indices) {
+              totalNodesVisited++;
               if (((isect != nullptr) && primitives[idx]->intersect(ray, isect)) ||
                   ((isect == nullptr) && primitives[idx]->intersect(ray))) {
                 hits = true;

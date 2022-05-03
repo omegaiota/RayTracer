@@ -198,7 +198,6 @@ namespace PROJ6850 {
 
 
         void BVHAccel::traverse(const Ray &ray, AccelNode *currentNode, Intersection *isect, bool &hits, int& totalNodesVisited) const {
-          totalNodesVisited++;
 
           double t0 = 0, t1 = 0;
           if (currentNode == nullptr || !currentNode->bb.intersect(ray, t0, t1)) {
@@ -214,6 +213,7 @@ namespace PROJ6850 {
           if (currentNode->isLeaf()) {
 //            printf("this is a leaf node");
             for (size_t i = currentNode->start; i < currentNode->start + currentNode->range; i++) {
+              totalNodesVisited++;
               if (((isect != nullptr) && primitives[i]->intersect(ray, isect)) ||
                   ((isect == nullptr) && primitives[i]->intersect(ray))) {
                 hits = true;
