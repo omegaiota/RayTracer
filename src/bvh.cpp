@@ -198,6 +198,8 @@ namespace PROJ6850 {
 
 
         void BVHAccel::traverse(const Ray &ray, AccelNode *currentNode, Intersection *isect, bool &hits, int& totalNodesVisited) const {
+          totalNodesVisited++;
+
           double t0 = 0, t1 = 0;
           if (currentNode == nullptr || !currentNode->bb.intersect(ray, t0, t1)) {
 
@@ -215,7 +217,6 @@ namespace PROJ6850 {
               if (((isect != nullptr) && primitives[i]->intersect(ray, isect)) ||
                   ((isect == nullptr) && primitives[i]->intersect(ray))) {
                 hits = true;
-                totalNodesVisited++;
               }
             }
           } else {

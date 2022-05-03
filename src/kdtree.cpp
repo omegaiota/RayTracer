@@ -138,6 +138,7 @@ namespace PROJ6850 {
 
 
         void KDTREEAccel::traverse(const Ray &ray, AccelNode *currentNode, Intersection *isect, bool &hits, int level, int& maxLevel, int& totalNodesVisited) const {
+          totalNodesVisited++;
           maxLevel = std::max(level, maxLevel);
           double t0 = 0, t1 = 0;
           if (currentNode == nullptr ||
@@ -155,7 +156,6 @@ namespace PROJ6850 {
               if (((isect != nullptr) && primitives[idx]->intersect(ray, isect)) ||
                   ((isect == nullptr) && primitives[idx]->intersect(ray))) {
                 hits = true;
-                totalNodesVisited++;
               }
             }
           } else {
