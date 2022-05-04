@@ -49,7 +49,7 @@ namespace StaticScene {
 
     struct RenderingStat {
         int totalVisitedNodes;
-        int totalRayTriangleTest;
+        unsigned long long totalRayTriangleTest;
     };
 
 /**
