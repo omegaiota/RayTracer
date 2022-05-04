@@ -28,9 +28,10 @@ namespace PROJ6850 {
             box.expand(_primitives[i]->get_bbox());
           }
 
-          int maxLevel = 0;
-          root = recursiveBuild( totalNodeBuilt, indices , _primitives, max_leaf_size, 0, box, maxLevel);
-          std::printf("maxLevel of KDTree: %d totalNodes: %d\n", maxLevel, totalNodeBuilt);
+          TreeStat stat = {};
+          root = recursiveBuild(   indices , _primitives, max_leaf_size, 0, box, stat);
+          std::printf("\n--------------------\nStatistics of KD-Tree:\nTotal Nodes: %d\n Total Leaf Nodes: %d\n Total Leaf Triangles: %d\n Level: %d\n", stat.totalNodes, stat.totalLeafNodes, stat.totalLeafTriangles, stat.maxLevel);
+
           primitives = _primitives;
 
         }
@@ -69,11 +70,11 @@ namespace PROJ6850 {
         }
 
 
-        AccelNode *KDTREEAccel::recursiveBuild( size_t &totalNodesBuild, std::set<int>& indices,
+        AccelNode *KDTREEAccel::recursiveBuild( std::set<int>& indices,
                                                const std::vector<Primitive *> &originalPrimitives,
-                                               size_t max_leaf_size, int level, BBox& bbox, int& maxLevel) {
-          maxLevel = std::max(maxLevel, level);
-          totalNodesBuild++;
+                                               size_t max_leaf_size, int level, BBox& bbox, TreeStat& treeStat) {
+          treeStat.maxLevel = std::max(treeStat.maxLevel, level);
+          treeStat.totalNodes++;
           int N = indices.size();
 
           BBox bboxAll; // boundBox for all primitives in this range
@@ -87,6 +88,8 @@ namespace PROJ6850 {
 
           if ((N <= max_leaf_size) || (level >  8 + 1.3 * std::log(originalPrimitives.size())) ) {
             // build leaf node
+            treeStat.totalLeafNodes++;
+            treeStat.totalLeafTriangles += indices.size();
             return thisNode;
           } else {
             BBox boundCentroidAll;
@@ -121,13 +124,16 @@ namespace PROJ6850 {
               }
             }
 
-            if ((left.size() > 0.9 * indices.size()) || (right.size() > 0.9 * indices.size())) // bad split, return tree node
+            if ((left.size() > 0.9 * indices.size()) || (right.size() > 0.9 * indices.size())) { // bad split, return tree node
+              treeStat.totalLeafNodes++;
+              treeStat.totalLeafTriangles += indices.size();
               return thisNode;
+            }
 
-            leftNode = recursiveBuild( totalNodesBuild, left, originalPrimitives,
-                                      max_leaf_size, level + 1, leftBBox, maxLevel);
-            rightNode = recursiveBuild(  totalNodesBuild, right, originalPrimitives,
-                                       max_leaf_size, level + 1, rightBBox, maxLevel);
+            leftNode = recursiveBuild(  left, originalPrimitives,
+                                      max_leaf_size, level + 1, leftBBox, treeStat);
+            rightNode = recursiveBuild(    right, originalPrimitives,
+                                       max_leaf_size, level + 1, rightBBox, treeStat);
             thisNode->l = leftNode;
             thisNode->r = rightNode;
             return thisNode;
@@ -137,7 +143,8 @@ namespace PROJ6850 {
         }
 
 
-        void KDTREEAccel::traverse(const Ray &ray, AccelNode *currentNode, Intersection *isect, bool &hits, int level, int& maxLevel, int& totalNodesVisited) const {
+        void KDTREEAccel::traverse(const Ray &ray, AccelNode *currentNode, Intersection *isect, bool &hits, int level, int& maxLevel, RenderingStat& renderingStat) const {
+          renderingStat.totalVisitedNodes++;
           maxLevel = std::max(level, maxLevel);
           double t0 = 0, t1 = 0;
           if (currentNode == nullptr ||
@@ -152,7 +159,7 @@ namespace PROJ6850 {
 
           if (currentNode->isLeaf()) {
             for (int idx : currentNode->indices) {
-              totalNodesVisited++;
+              renderingStat.totalRayTriangleTest++;
               if (((isect != nullptr) && primitives[idx]->intersect(ray, isect)) ||
                   ((isect == nullptr) && primitives[idx]->intersect(ray))) {
                 hits = true;
@@ -174,7 +181,7 @@ namespace PROJ6850 {
                 secondNode = currentNode->l;
               }
 
-              traverse(ray, firstNode, isect, hits, level+1, maxLevel, totalNodesVisited);
+              traverse(ray, firstNode, isect, hits, level+1, maxLevel, renderingStat);
               // If there is intersection with first node, and intersection point is within node, terminate search process
               bool skipSecondNode = false;
               if (hits) {
@@ -183,15 +190,15 @@ namespace PROJ6850 {
                   skipSecondNode = true;
               }
               if (!skipSecondNode)
-                traverse(ray, secondNode, isect, hits, level+1, maxLevel, totalNodesVisited);
+                traverse(ray, secondNode, isect, hits, level+1, maxLevel, renderingStat);
 
             } else if (leftIntersect || rightIntersect) {
-              traverse(ray, leftIntersect ? currentNode->l : currentNode->r, isect, hits, level+1, maxLevel, totalNodesVisited);
+              traverse(ray, leftIntersect ? currentNode->l : currentNode->r, isect, hits, level+1, maxLevel, renderingStat);
             }
           }
         }
 
-        bool KDTREEAccel::intersect(const Ray &ray, Intersection *isect, int& totalNodesVisited) const {
+        bool KDTREEAccel::intersect(const Ray &ray, Intersection *isect, RenderingStat& renderingStat) const {
           // Implement ray - bvh aggregate intersection test. A ray intersects
           // with a kdtree aggregate if and only if it intersects a primitive in
           // the BVH that is not an aggregate. When an intersection does happen.
@@ -200,18 +207,18 @@ namespace PROJ6850 {
 
           bool hit = false;
           int maxLevel = 0;
-          traverse(ray, root, isect, hit, 0, maxLevel, totalNodesVisited);
+          traverse(ray, root, isect, hit, 0, maxLevel, renderingStat);
 //          std::printf("level: %d\n", maxLevel);
           return hit;
         }
 
-        bool KDTREEAccel::intersect(const Ray &ray, int& totalNodesVisited) const {
+        bool KDTREEAccel::intersect(const Ray &ray, RenderingStat& renderingStat) const {
           // Implement ray - bvh aggregate intersection test. A ray intersects
           // with a kdtree aggregate if and only if it intersects a primitive in
           // the BVH that is not an aggregate.
           bool hit = false;
           int maxLevel = 0;
-          traverse(ray, root, nullptr, hit, 0, maxLevel, totalNodesVisited);
+          traverse(ray, root, nullptr, hit, 0, maxLevel, renderingStat);
 //          std::printf("level: %d\n", maxLevel);
 
           return hit;
@@ -227,7 +234,8 @@ namespace PROJ6850 {
 
           bool hit = false;
           int maxLevel = 0, totalNodesVisited = 0;
-          traverse(ray, root, isect, hit, 0, maxLevel, totalNodesVisited);
+          RenderingStat renderingStat = {};
+          traverse(ray, root, isect, hit, 0, maxLevel, renderingStat);
 //          std::printf("level: %d\n", maxLevel);
           return hit;
         }
@@ -238,7 +246,8 @@ namespace PROJ6850 {
           // the BVH that is not an aggregate.
           bool hit = false;
           int maxLevel = 0, totalNodesVisited = 0;
-          traverse(ray, root, nullptr, hit, 0, maxLevel, totalNodesVisited);
+          RenderingStat renderingStat = {};
+          traverse(ray, root, nullptr, hit, 0, maxLevel, renderingStat);
 //          std::printf("level: %d\n", maxLevel);
 
           return hit;

@@ -54,7 +54,7 @@ namespace PROJ6850 {
              * \return true if the given ray intersects with the aggregate,
                        false otherwise
              */
-            bool intersect(const Ray &r, int& totalNodesVisited) const;
+            bool intersect(const Ray &r, RenderingStat& renderingStat) const;
             bool intersect(const Ray &r) const;
             /**
              * Ray - Aggregate intersection 2.
@@ -69,7 +69,7 @@ namespace PROJ6850 {
              * \return true if the given ray intersects with the aggregate,
                        false otherwise
              */
-            bool intersect(const Ray &r, Intersection *i, int& totalNodesVisited) const;
+            bool intersect(const Ray &r, Intersection *i, RenderingStat& renderingStat) const;
             bool intersect(const Ray &r, Intersection *i ) const;
 
             /**
@@ -100,8 +100,8 @@ namespace PROJ6850 {
             AccelNode *recursiveBuild(size_t start, size_t end, size_t &totalNodesBuild,
                                       std::vector<Primitive *> &orderedPrimitives,
                                       const std::vector<Primitive *> &originalPrimitives,
-                                      size_t max_leaf_size, int level, int& maxLevel); ///< helper function for recursively building BVH
-            void traverse(const Ray &ray, AccelNode* currentNode, Intersection *isect, bool &hits, int& totalNodesVisited) const;
+                                      size_t max_leaf_size, int level, TreeStat& treeStat); ///< helper function for recursively building BVH
+            void traverse(const Ray &ray, AccelNode* currentNode, Intersection *isect, bool &hits, RenderingStat& renderingStat) const;
             void  recursiveDelete(AccelNode* node);
 
         };  // namespace StaticScene

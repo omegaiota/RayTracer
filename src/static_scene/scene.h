@@ -40,6 +40,18 @@ namespace StaticScene {
 
     };
 
+    struct TreeStat {
+        int totalNodes;
+        int maxLevel;
+        int totalLeafNodes;
+        int totalLeafTriangles;
+    };
+
+    struct RenderingStat {
+        int totalVisitedNodes;
+        int totalRayTriangleTest;
+    };
+
 /**
  * Interface for objects in the scene.
  */

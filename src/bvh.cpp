@@ -20,9 +20,10 @@ namespace PROJ6850 {
           size_t totalNodeBuilt = 0;
           std::vector<Primitive *> orderedPrimitives;
           orderedPrimitives.reserve(_primitives.size());
-          int maxLevel = 0;
-          root = recursiveBuild(0, _primitives.size(), totalNodeBuilt, orderedPrimitives, _primitives, max_leaf_size, 0, maxLevel);
-          std::printf("maxLevel of BVH: %d totalNodes: %d\n", maxLevel, totalNodeBuilt);
+          TreeStat stat = {};
+          root = recursiveBuild(0, _primitives.size(), totalNodeBuilt, orderedPrimitives, _primitives, max_leaf_size, 0, stat);
+          std::printf("Primitive Size: %d\n", _primitives.size());
+          std::printf("\n--------------------\nStatistics of BVH:\nTotal Nodes: %d\n Total Leaf Nodes: %d\n Total Leaf Triangles: %d\n Level: %d\n", stat.totalNodes, stat.totalLeafNodes, stat.totalLeafTriangles, stat.maxLevel);
           assert(root->range == _primitives.size());
           assert(orderedPrimitives.size() == root->range);
           primitives = orderedPrimitives;
@@ -50,9 +51,9 @@ namespace PROJ6850 {
         AccelNode *BVHAccel::recursiveBuild(size_t start, size_t end, size_t &totalNodesBuild,
                                             std::vector<Primitive *> &orderedPrimitives,
                                             const std::vector<Primitive *> &originalPrimitives,
-                                            size_t max_leaf_size, int level, int& maxLevel) {
-           totalNodesBuild++;
-           maxLevel = std::max(maxLevel, level);
+                                            size_t max_leaf_size, int level, TreeStat& treeStat) {
+          treeStat.totalNodes++;
+          treeStat.maxLevel = std::max(treeStat.maxLevel, level);
           size_t range = end - start;
 
           BBox boundBox; // boundBox for all primitives in this range
@@ -64,7 +65,9 @@ namespace PROJ6850 {
             // Leafnode
             for (size_t i = start; i < end; i++) {
               orderedPrimitives.push_back(originalPrimitives[i]);
+              treeStat.totalLeafTriangles++;
             }
+            treeStat.totalLeafNodes++;
             return thisNode;
           }
 
@@ -153,21 +156,21 @@ namespace PROJ6850 {
               }
 
               leftNode = recursiveBuild(0, countLeft, totalNodesBuild, orderedPrimitives, left,
-                                        max_leaf_size, level+1, maxLevel);
+                                        max_leaf_size, level+1, treeStat);
               rightNode = recursiveBuild(0, range - countLeft, totalNodesBuild, orderedPrimitives, right,
-                                         max_leaf_size,  level+1,maxLevel);
+                                         max_leaf_size,  level+1,treeStat);
             } else {
               size_t mid = (start + end) / 2;
               leftNode = recursiveBuild(start, mid, totalNodesBuild, orderedPrimitives, originalPrimitives,
-                                        max_leaf_size,  level+1,maxLevel);
+                                        max_leaf_size,  level+1,treeStat);
               rightNode = recursiveBuild(mid, end, totalNodesBuild, orderedPrimitives, originalPrimitives,
-                                         max_leaf_size, level+1, maxLevel);
+                                         max_leaf_size, level+1, treeStat);
             }
             thisNode->l = leftNode;
             thisNode->r = rightNode;
 
           } else {
-            double medianOnAxis = findSplitPlane(originalPrimitives, start, end,  splitDimension);
+            double medianOnAxis = findSplitPlane(originalPrimitives, start, end, splitDimension);
             AccelNode *leftNode, *rightNode;
             std::vector<Primitive *> left, right;
             for (int i = start; i < end; i++) {
@@ -178,12 +181,18 @@ namespace PROJ6850 {
               }
             }
 
-            if ((left.size() == range) || (right.size() == range)) // bad split, return tree node
+            if ((left.size() == range) || (right.size() == range)) { // bad split, return make leaf node
+              treeStat.totalLeafNodes++;
+              for (size_t i = start; i < end; i++) {
+                orderedPrimitives.push_back(originalPrimitives[i]);
+               treeStat.totalLeafTriangles++;
+              }
               return thisNode;
+            }
             leftNode = recursiveBuild(0, left.size(), totalNodesBuild, orderedPrimitives, left,
-                                      max_leaf_size,level+1, maxLevel);
+                                      max_leaf_size,level+1, treeStat);
             rightNode = recursiveBuild(0, right.size(), totalNodesBuild, orderedPrimitives, right,
-                                       max_leaf_size,level+1, maxLevel);
+                                       max_leaf_size,level+1, treeStat);
             thisNode->l = leftNode;
             thisNode->r = rightNode;
 
@@ -197,8 +206,8 @@ namespace PROJ6850 {
 
 
 
-        void BVHAccel::traverse(const Ray &ray, AccelNode *currentNode, Intersection *isect, bool &hits, int& totalNodesVisited) const {
-
+        void BVHAccel::traverse(const Ray &ray, AccelNode *currentNode, Intersection *isect, bool &hits, RenderingStat& renderingStat) const {
+          renderingStat.totalVisitedNodes++;
           double t0 = 0, t1 = 0;
           if (currentNode == nullptr || !currentNode->bb.intersect(ray, t0, t1)) {
 
@@ -213,7 +222,7 @@ namespace PROJ6850 {
           if (currentNode->isLeaf()) {
 //            printf("this is a leaf node");
             for (size_t i = currentNode->start; i < currentNode->start + currentNode->range; i++) {
-              totalNodesVisited++;
+               renderingStat.totalRayTriangleTest++;
               if (((isect != nullptr) && primitives[i]->intersect(ray, isect)) ||
                   ((isect == nullptr) && primitives[i]->intersect(ray))) {
                 hits = true;
@@ -228,29 +237,28 @@ namespace PROJ6850 {
             // first traverse the node that has closer hit
             if (leftIntersect && rightIntersect) { //traversal optimization
               if (tminLeft < tminRight) {
-                traverse(ray, currentNode->l, isect, hits, totalNodesVisited);
-                traverse(ray, currentNode->r, isect, hits, totalNodesVisited);
+                traverse(ray, currentNode->l, isect, hits, renderingStat);
+                traverse(ray, currentNode->r, isect, hits, renderingStat);
               } else {
-                traverse(ray, currentNode->r, isect, hits, totalNodesVisited);
-                traverse(ray, currentNode->l, isect, hits, totalNodesVisited);
+                traverse(ray, currentNode->r, isect, hits, renderingStat);
+                traverse(ray, currentNode->l, isect, hits, renderingStat);
               }
             } else if (leftIntersect) {
-              traverse(ray, currentNode->l, isect, hits, totalNodesVisited);
+              traverse(ray, currentNode->l, isect, hits, renderingStat);
             } else if (rightIntersect) {
-              traverse(ray, currentNode->r, isect, hits, totalNodesVisited);
+              traverse(ray, currentNode->r, isect, hits, renderingStat);
             }
           }
         }
 
-        bool BVHAccel::intersect(const Ray &ray, Intersection *isect, int& totalNodesVisited) const {
+        bool BVHAccel::intersect(const Ray &ray, Intersection *isect, RenderingStat& renderingStat) const {
           // Implement ray - bvh aggregate intersection test. A ray intersects
           // with a BVH aggregate if and only if it intersects a primitive in
           // the BVH that is not an aggregate. When an intersection does happen.
           // You should store the non-aggregate primitive in the intersection data
           // and not the BVH aggregate itself.
-
           bool hit = false;
-          traverse(ray, root, isect, hit, totalNodesVisited);
+          traverse(ray, root, isect, hit, renderingStat);
           return hit;
         }
 
@@ -263,16 +271,17 @@ namespace PROJ6850 {
 
           bool hit = false;
           int totalNodesVisited = 0;
-          traverse(ray, root, isect, hit, totalNodesVisited);
+          RenderingStat renderingStat = {};
+          traverse(ray, root, isect, hit, renderingStat);
           return hit;
         }
 
-        bool BVHAccel::intersect(const Ray &ray, int& totalNodesVisited) const {
+        bool BVHAccel::intersect(const Ray &ray, RenderingStat& renderingStat) const {
           // Implement ray - bvh aggregate intersection test. A ray intersects
           // with a BVH aggregate if and only if it intersects a primitive in
           // the BVH that is not an aggregate.
           bool hit = false;
-          traverse(ray, root, nullptr, hit, totalNodesVisited);
+          traverse(ray, root, nullptr, hit, renderingStat);
           return hit;
         }
 
@@ -282,7 +291,8 @@ namespace PROJ6850 {
           // the BVH that is not an aggregate.
           bool hit = false;
           int totalNodesVisited = 0;
-          traverse(ray, root, nullptr, hit, totalNodesVisited);
+          RenderingStat renderingStat = {};
+          traverse(ray, root, nullptr, hit, renderingStat);
           return hit;
         }
 

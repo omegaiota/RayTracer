@@ -25,6 +25,7 @@ using PROJ6850::StaticScene::EnvironmentLight;
 using PROJ6850::StaticScene::AccelNode;
 using PROJ6850::StaticScene::BVHAccel;
 using PROJ6850::StaticScene::KDTREEAccel;
+using PROJ6850::StaticScene::RenderingStat;
 
 namespace PROJ6850 {
 
@@ -167,18 +168,18 @@ namespace PROJ6850 {
         /**
          * Trace an ray in the scene.
          */
-        Spectrum trace_ray(const Ray& ray, int& totalNodesVisited);
+        Spectrum trace_ray(const Ray& ray, RenderingStat& renderingStat);
 
         /**
          * Trace a camera ray given by the pixel coordinate.
          */
-        Spectrum raytrace_pixel(size_t x, size_t y, int& totalNodesVisited);
+        Spectrum raytrace_pixel(size_t x, size_t y, RenderingStat& renderingStat);
 
         /**
          * Raytrace a tile of the scene and update the frame buffer. Is run
          * in a worker thread.
          */
-        void raytrace_tile(int tile_x, int tile_y, int tile_w, int tile_h, int& totalNodesVisited);
+        void raytrace_tile(int tile_x, int tile_y, int tile_w, int tile_h, RenderingStat& renderingStat);
 
         /**
          * Implementation of a ray tracer worker thread
